@@ -227,6 +227,7 @@ async function parseCardUSD(file, totalCLP, fecha){
     if(!rawDesc||rawDesc.startsWith("=")||rawDesc.startsWith("CR"))continue;
     const amt=parseFloat(r[4]);
     if(isNaN(amt)||amt===0)continue;
+    if(amt>0)continue; // Skip positivos — MONTO CANCELADO = pago recibido, netea contra cuenta
     // Normalizar: quitar sufijos tipo "COMPRAS INT.VI", "PAGOS INT.VISA"
     const key=rawDesc.replace(/\s+(COMPRAS INT\.VI|PAGOS INT\.VISA|CR\.C\.INT\.VISA).*/i,"").trim();
     if(!grp[key])grp[key]={desc:key,amtUSD:0};
