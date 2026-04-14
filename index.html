@@ -128,7 +128,7 @@ const CATS=[
   "Ingreso por venta nueva","Ingreso stock","Costo por venta","Costo servicio",
   "Facturacion","Comisiones","Sueldo vendedor fijo","Agencia","Ads",
   "Sueldo Owner","Oficinas","Papeleria","Comida","Contabilidad",
-  "Otros administracion","Software y TI","CRM","Plan Basic","GSuite",
+  "Otros administracion","CRM","Plan Basic","GSuite",
   "Direccion Empresa","Sueldo TI","Otros","Aporte de capital"
 ];
 
@@ -142,8 +142,8 @@ const USD_RULES=[
   {pat:/HIGHLEVEL/,                       cat:"CRM",              fixed:true},
   {pat:/ELEVENLABS/,                      cat:"Plan Basic",       fixed:true},
   {pat:/VAPI API/,                        cat:"Plan Basic",       fixed:false},
-  {pat:/HEROKU/,                          cat:"Software y TI",    fixed:false},
-  {pat:/MONGODBCLOUD/,                    cat:"Software y TI",    fixed:false},
+  {pat:/HEROKU/,                          cat:"Costo servicio",    fixed:false},
+  {pat:/MONGODBCLOUD/,                    cat:"Costo servicio",    fixed:false},
   {pat:/TWILIO/,                          cat:"Costo servicio",   fixed:false},
   {pat:/GOOGLE.*WORKSPACE|GOOGLE.*GSUITE/,cat:"GSuite",           fixed:false},
   {pat:/GOOGLE.*CLOUD/,                   cat:"GSuite",           fixed:false},
@@ -157,7 +157,7 @@ const CLP_RULES=[
   {pat:/ACER STORE/,                    cat:"Oficinas",            fixed:false},
   {pat:/OFICINA VIRTUAL/,               cat:"Oficinas",            fixed:false},
   {pat:/MUNICIPALIDAD/,                 cat:"Papeleria",           fixed:false},
-  {pat:/SP DIGITAL/,                    cat:"Software y TI",       fixed:false},
+  {pat:/SP DIGITAL/,                    cat:"Costo servicio",       fixed:false},
   {pat:/CLARO/,                         cat:"Otros administracion",fixed:false},
   {pat:/BPO ADVISORS/,                  cat:"Agencia",             fixed:false},
   {pat:/PAGO PAC EN PESOS/,             cat:"Otros",               fixed:false},
@@ -176,8 +176,9 @@ function ruleCuenta(desc){
   const L=learnedCat(desc);
   if(L)return{cat:L,src:"learn"};
   const d=desc.toUpperCase().replace(/\s+/g," ").trim();
-  if(/PAGO DEUDA TARJETA.*(USD|US\$|7567.*USD|USD.*7567)/.test(d))return{cat:"__CARD_USD__"};
+  if(/PAGO DEUDA TARJETA.*(USD|US\$)/.test(d))return{cat:"__CARD_USD__"};
   if(/PAGO DEUDA TARJETA/.test(d))return{cat:"__CARD_CLP__"};
+  if(/PAC TARJETA/.test(d))return{cat:"__CARD_CLP__"};
   if(/TRANSFERENCIA RECIBIDA/.test(d))return{cat:"Ingreso stock",src:"rule"};
   if(/NICOLAS OLIVARES|CRISTIAN.*LAMA|LAMA BASCUNAN/.test(d))return{cat:"Aporte de capital",src:"rule"};
   if(/ABONO POR TRANSFERENCIA PROGRAMADA/.test(d))return{cat:"Aporte de capital",src:"rule"};
@@ -266,6 +267,8 @@ async function parseCardCLP(file, totalCLP, fecha){
     if(!desc||desc.startsWith("="))continue;
     const amt=parseFloat(r[6]||r[4]);
     if(isNaN(amt)||amt===0)continue;
+    // Skip positivos — son pagos recibidos que netean contra cuenta corriente
+    if(amt > 0) continue;
     charges.push({desc,amtCLP:Math.abs(amt)});
   }
   if(!charges.length)return[];
@@ -290,7 +293,7 @@ async function parseCardCLP(file, totalCLP, fecha){
 async function parseCuenta(file,mes,año,fUSD,fCLP){
   const buf=await file.arrayBuffer();
   const wb=XLSX.read(buf,{type:"array",cellDates:false});
-  const sn=wb.SheetNames.find(n=>n.toLowerCase().includes("formato claude"))||wb.SheetNames[0];
+  const sn=wb.SheetNames.find(n=>n.toLowerCase().includes("formato claude"))||wb.SheetNames.find(n=>n.toLowerCase().includes("hoja 1"))||wb.SheetNames[0];
   const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:""});
   const movs=[];
   let saldoIni=null,saldoFin=null,skipped=0,seq=0;
