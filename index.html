@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CobraYA — Clasificador</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#f5f5f3;--surface:#fff;--border:rgba(0,0,0,.09);--text:#1a1a1a;--muted:#6b7280;
+  --green:#16a34a;--blue:#2563eb;--red:#dc2626;--amber:#d97706;
+  --green-bg:#f0fdf4;--blue-bg:#eff6ff;--red-bg:#fff1f2;--amber-bg:#fffbeb}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh}
+.wrap{max-width:1200px;margin:0 auto;padding:28px 20px}
+h1{font-size:21px;font-weight:600;margin-bottom:3px}
+.sub{color:var(--muted);font-size:12px;margin-bottom:22px}
+.card{background:var(--surface);border:0.5px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px}
+.slabel{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.up-row{display:flex;gap:12px;flex-wrap:wrap}
+.up-box{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  border:1.5px dashed #ccc;border-radius:10px;padding:18px 14px;cursor:pointer;
+  flex:1;min-width:180px;background:var(--bg);transition:all .18s;text-align:center}
+.up-box:hover{border-color:var(--blue);background:var(--blue-bg)}
+.up-box.ok{border-color:var(--green);background:var(--green-bg)}
+.up-box .ico{font-size:22px}
+.up-box .fname{font-size:10px;color:var(--muted);max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+input[type=file]{display:none}
+.cfg{display:flex;gap:14px;flex-wrap:wrap;align-items:center;background:var(--bg);
+  border-radius:8px;padding:10px 14px;border:0.5px solid var(--border);margin-bottom:14px}
+.cfg label{font-size:12px;color:var(--muted);white-space:nowrap}
+.cfg select{padding:5px 8px;border-radius:6px;border:0.5px solid #d1d5db;font-size:12px;background:var(--surface);color:var(--text)}
+.btn{padding:8px 18px;border-radius:8px;border:none;font-size:12px;font-weight:500;cursor:pointer;transition:opacity .15s}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-green{background:var(--green);color:#fff}
+.btn-amber{background:#f59e0b;color:#fff}
+.btn-ghost{background:var(--surface);color:var(--muted);border:0.5px solid #d1d5db}
+.cuad{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px}
+.cuad-box{background:var(--bg);border:0.5px solid var(--border);border-radius:9px;padding:11px 13px}
+.cuad-box .val{font-size:17px;font-weight:600;margin-bottom:2px}
+.cuad-box .lbl{font-size:10px;color:var(--muted)}
+.cuad-result{border-radius:9px;padding:11px 15px;display:flex;align-items:center;gap:10px;font-weight:500;font-size:13px}
+.cuad-result.ok{background:var(--green-bg);border:0.5px solid #86efac;color:var(--green)}
+.cuad-result.warn{background:var(--red-bg);border:0.5px solid #fca5a5;color:var(--red)}
+.cuad-result.partial{background:var(--amber-bg);border:0.5px solid #fcd34d;color:var(--amber)}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.chip{background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:5px 12px;display:flex;gap:5px;align-items:center}
+.chip .num{font-size:17px;font-weight:600}.chip .lbl{font-size:11px;color:var(--muted)}
+.filters{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.fb{padding:4px 10px;border-radius:5px;font-size:11px;font-weight:500;border:0.5px solid #d1d5db;cursor:pointer;background:var(--surface);color:var(--muted)}
+.fb.on{background:var(--text);color:var(--surface);border-color:var(--text)}
+.tbl-wrap{overflow-x:auto;border-radius:9px;border:0.5px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:7px 10px;text-align:left;font-weight:500;color:var(--muted);font-size:11px;background:var(--bg);border-bottom:0.5px solid var(--border);white-space:nowrap}
+td{padding:6px 10px;border-bottom:0.5px solid rgba(0,0,0,.04);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafaf8!important}
+tr.row-pending td{background:#fff8f0}
+tr.row-usd td{background:#eef2ff}
+tr.row-clp td{background:#f5f3ff}
+select.cat{width:100%;font-size:11px;padding:3px 5px;border-radius:5px;border:0.5px solid #d1d5db;background:var(--surface);color:var(--text)}
+select.cat.empty{border:1.5px solid #fca5a5;background:var(--red-bg)}
+.badge{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:500;white-space:nowrap}
+.prop-cell{font-size:11px;color:var(--muted);padding:3px 6px;border-radius:4px;background:var(--bg);border:0.5px solid var(--border);white-space:nowrap;display:inline-block}
+.prop-cell.ia{color:var(--blue);background:var(--blue-bg);border-color:#93c5fd}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.note{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6}
+.empty-row{padding:36px;text-align:center;color:var(--muted)}
+.apirow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.apirow input{flex:1;min-width:240px;font-family:monospace;font-size:11px}
+.saved{font-size:11px;color:var(--green);font-weight:500}
+.divider{height:1px;background:var(--border);margin:14px 0}
+.tag{font-size:9px;padding:1px 6px;border-radius:3px;font-weight:600;display:inline-block}
+.tag-usd{background:#dbeafe;color:#1d4ed8}
+.tag-clp{background:#ede9fe;color:#6d28d9}
+.tag-cc{background:#f3f4f6;color:#6b7280}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:3px">CobraYA!</div>
+  <h1>Clasificador de Movimientos</h1>
+  <p class="sub">Cuenta corriente + Tarjeta USD + Tarjeta CLP → distribución proporcional automática → confirma y exporta</p>
+
+  <div id="step1">
+    <div class="card">
+      <div class="slabel">1. Archivos</div>
+      <div class="up-row" id="up-row"></div>
+      <div class="divider"></div>
+      <div class="slabel">2. Período</div>
+      <div class="cfg" style="margin-bottom:0">
+        <label>Mes</label><select id="sel-mes"></select><select id="sel-año"></select>
+      </div>
+      <div class="divider"></div>
+      <div class="slabel">3. API Key Anthropic <span style="font-size:10px;font-weight:400;text-transform:none;color:var(--muted)">(para propuestas IA · Haiku · &lt;$0.01/mes)</span></div>
+      <div class="apirow">
+        <input type="password" id="api-key" placeholder="sk-ant-api03-...">
+        <button class="btn btn-ghost" onclick="saveKey()">Guardar</button>
+        <span class="saved" id="key-saved" style="display:none">✓ Guardada</span>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-top:5px">Solo se guarda en tu navegador.</p>
+      <div class="divider"></div>
+      <button class="btn btn-green" id="btn-go" style="font-size:13px;padding:9px 24px" disabled>Clasificar →</button>
+    </div>
+  </div>
+
+  <div id="step2" style="display:none">
+    <div id="cuad-panel"></div>
+    <div class="stats" id="stats-row"></div>
+    <div class="actions" id="actions-row"></div>
+    <div class="filters" id="filter-row"></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Fecha</th><th>Descripción</th>
+          <th style="text-align:right">Monto CLP</th>
+          <th>Fuente</th><th>Propuesta</th>
+          <th>Categoría real</th><th>Estado</th>
+        </tr></thead>
+        <tbody id="tbl-body"></tbody>
+      </table>
+    </div>
+    <p class="note" id="footer-note"></p>
+  </div>
+</div>
+
+<script>
+const CATS=[
+  "Ingreso por venta nueva","Ingreso stock","Costo por venta","Costo servicio",
+  "Facturacion","Comisiones","Sueldo vendedor fijo","Agencia","Ads",
+  "Sueldo Owner","Oficinas","Papeleria","Comida","Contabilidad",
+  "Otros administracion","Software y TI","CRM","Plan Basic","GSuite",
+  "Direccion Empresa","Sueldo TI","Otros","Aporte de capital"
+];
+
+const MESES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio",
+             "Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+// ── Reglas tarjeta USD ──────────────────────────
+const USD_RULES=[
+  {pat:/APOLLO\.IO/,                      cat:"CRM",              fixed:true},
+  {pat:/ZOHO.CRM/,                        cat:"CRM",              fixed:true},
+  {pat:/HIGHLEVEL/,                       cat:"CRM",              fixed:true},
+  {pat:/ELEVENLABS/,                      cat:"Plan Basic",       fixed:true},
+  {pat:/VAPI API/,                        cat:"Plan Basic",       fixed:false},
+  {pat:/HEROKU/,                          cat:"Software y TI",    fixed:false},
+  {pat:/MONGODBCLOUD/,                    cat:"Software y TI",    fixed:false},
+  {pat:/TWILIO/,                          cat:"Costo servicio",   fixed:false},
+  {pat:/GOOGLE.*WORKSPACE|GOOGLE.*GSUITE/,cat:"GSuite",           fixed:false},
+  {pat:/GOOGLE.*CLOUD/,                   cat:"GSuite",           fixed:false},
+  {pat:/MONTO CANCELADO/,                 cat:null,               fixed:false},
+];
+
+// ── Reglas tarjeta CLP ─────────────────────────
+const CLP_RULES=[
+  {pat:/COMISION COMPRA INTERNACIONAL/, cat:"Otros",               fixed:true},
+  {pat:/COBRO ADM MENSUAL/,             cat:"Otros",               fixed:true},
+  {pat:/ACER STORE/,                    cat:"Oficinas",            fixed:false},
+  {pat:/OFICINA VIRTUAL/,               cat:"Oficinas",            fixed:false},
+  {pat:/MUNICIPALIDAD/,                 cat:"Papeleria",           fixed:false},
+  {pat:/SP DIGITAL/,                    cat:"Software y TI",       fixed:false},
+  {pat:/CLARO/,                         cat:"Otros administracion",fixed:false},
+  {pat:/BPO ADVISORS/,                  cat:"Agencia",             fixed:false},
+  {pat:/PAGO PAC EN PESOS/,             cat:"Otros",               fixed:false},
+  {pat:/INTERESES ROTATIVOS/,           cat:"Otros",               fixed:false},
+  {pat:/IMPUESTO DECRETO/,              cat:"Otros",               fixed:false},
+  {pat:/MONTO CANCELADO/,               cat:null,                  fixed:false},
+];
+
+// ── Aprendizaje ────────────────────────────────
+function loadRules(){try{return JSON.parse(localStorage.getItem("cy_rules")||"{}");}catch{return {};}}
+function saveRule(d,c){if(!d||!c)return;const r=loadRules();r[d.trim()]=c;localStorage.setItem("cy_rules",JSON.stringify(r));syncRulesToSheets(d,c);}
+function learnedCat(d){return loadRules()[d.trim()]||null;}
+
+// ── Reglas cuenta corriente ────────────────────
+function ruleCuenta(desc){
+  const L=learnedCat(desc);
+  if(L)return{cat:L,src:"learn"};
+  const d=desc.toUpperCase().replace(/\s+/g," ").trim();
+  if(/PAGO DEUDA TARJETA.*(USD|US\$|7567.*USD|USD.*7567)/.test(d))return{cat:"__CARD_USD__"};
+  if(/PAGO DEUDA TARJETA/.test(d))return{cat:"__CARD_CLP__"};
+  if(/TRANSFERENCIA RECIBIDA/.test(d))return{cat:"Ingreso stock",src:"rule"};
+  if(/NICOLAS OLIVARES|CRISTIAN.*LAMA|LAMA BASCUNAN/.test(d))return{cat:"Aporte de capital",src:"rule"};
+  if(/ABONO POR TRANSFERENCIA PROGRAMADA/.test(d))return{cat:"Aporte de capital",src:"rule"};
+  if(/EUGENIO LLANOS/.test(d))return{cat:"Sueldo Owner",src:"rule"};
+  if(/BENJAMIN GARCIA/.test(d))return{cat:"Sueldo TI",src:"rule"};
+  if(/ANGGELA.*MEDINA|MEDINA MARTINEZ/.test(d))return{cat:"Sueldo vendedor fijo",src:"rule"};
+  if(/KEVIN.*SIMI|SIMI IGOR/.test(d))return{cat:"Sueldo vendedor fijo",src:"rule"};
+  if(/MART[IÍ]N LLANOS|MARTIN LLANOS/.test(d))return{cat:"Contabilidad",src:"rule"};
+  if(/PAGO EN L[IÍ]NEA SII|SII \d/.test(d))return{cat:"Contabilidad",src:"rule"};
+  if(/PREVIRED/.test(d))return{cat:"Contabilidad",src:"rule"};
+  if(/COBRO ADM MENSUAL|COMISION COMPRA INTERNACIONAL/.test(d))return{cat:"Otros",src:"rule"};
+  if(/MONTO CANCELADO/.test(d))return{cat:"Otros",src:"rule"};
+  if(/MUNICIPALIDAD/.test(d))return{cat:"Papeleria",src:"rule"};
+  if(/UBER EATS|RAPPI/.test(d))return{cat:"Comida",src:"rule"};
+  if(/FACEBK|FACEBOOK/.test(d))return{cat:"Ads",src:"rule"};
+  if(/GOOGLE.*ADS/.test(d))return{cat:"Ads",src:"rule"};
+  return{cat:null,src:null};
+}
+
+// ── Fechas ─────────────────────────────────────
+function toDate(v){
+  if(!v)return null;
+  if(typeof v==="number")return new Date(Math.round((v-25569)*86400*1000));
+  if(v instanceof Date)return v;
+  if(typeof v==="string"){const p=v.slice(0,10).split("-");if(p.length===3)return new Date(p[0],p[1]-1,p[2]);}
+  return null;
+}
+function fmtDate(v){const d=toDate(v);if(!d)return"";return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function inMonth(v,m,a){const d=toDate(v);return d?d.getFullYear()===a&&d.getMonth()+1===m:false;}
+function inPrevMonth(v,m,a){const d=toDate(v);if(!d)return false;const pm=m===1?12:m-1,pa=m===1?a-1:a;return d.getFullYear()===pa&&d.getMonth()+1===pm;}
+
+// ── Parsear tarjeta USD ────────────────────────
+async function parseCardUSD(file, totalCLP, fecha){
+  const buf=await file.arrayBuffer();
+  const wb=XLSX.read(buf,{type:"array",cellDates:false});
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:""});
+  let hi=null;
+  for(let i=0;i<rows.length;i++){if(String(rows[i][1]||"").includes("Fecha")){hi=i;break;}}
+  if(hi===null)return[];
+  // Agrupar cargos por proveedor normalizado
+  const grp={};
+  for(let i=hi+1;i<rows.length;i++){
+    const r=rows[i];
+    if(!r[1]||!r[3])continue;
+    const rawDesc=String(r[3]).trim();
+    if(!rawDesc||rawDesc.startsWith("=")||rawDesc.startsWith("CR"))continue;
+    const amt=parseFloat(r[4]);
+    if(isNaN(amt)||amt===0)continue;
+    // Normalizar: quitar sufijos tipo "COMPRAS INT.VI", "PAGOS INT.VISA"
+    const key=rawDesc.replace(/\s+(COMPRAS INT\.VI|PAGOS INT\.VISA|CR\.C\.INT\.VISA).*/i,"").trim();
+    if(!grp[key])grp[key]={desc:key,amtUSD:0};
+    grp[key].amtUSD+=Math.abs(amt);
+  }
+  const items=Object.values(grp);
+  const totalUSD=items.reduce((s,x)=>s+x.amtUSD,0);
+  if(totalUSD===0)return[];
+  let seq=0,assigned=0,result=[];
+  items.forEach((item,idx)=>{
+    const pct=item.amtUSD/totalUSD;
+    const montoItem=idx===items.length-1?totalCLP-assigned:Math.round(totalCLP*pct);
+    assigned+=montoItem;
+    const L=learnedCat(item.desc);
+    const rule=USD_RULES.find(r=>r.pat.test(item.desc.toUpperCase()));
+    const cat=L||(rule?rule.cat:null);
+    const src=L?"learn":(rule?"rule":null);
+    result.push({id:"u"+seq++,fecha,descripcion:item.desc,monto:-montoItem,
+      propuesta:cat,propSrc:src,real:cat&&src?cat:null,
+      cardType:"USD",amtUSD:item.amtUSD});
+  });
+  return result;
+}
+
+// ── Parsear tarjeta CLP ────────────────────────
+async function parseCardCLP(file, totalCLP, fecha){
+  const buf=await file.arrayBuffer();
+  const wb=XLSX.read(buf,{type:"array",cellDates:false});
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:""});
+  let hi=null;
+  for(let i=0;i<rows.length;i++){if(String(rows[i][1]||"").includes("Fecha")){hi=i;break;}}
+  if(hi===null)return[];
+  const charges=[];
+  for(let i=hi+1;i<rows.length;i++){
+    const r=rows[i];
+    if(!r[1]||!r[3])continue;
+    const desc=String(r[3]).trim().replace(/\s+/g," ");
+    if(!desc||desc.startsWith("="))continue;
+    const amt=parseFloat(r[6]||r[4]);
+    if(isNaN(amt)||amt===0)continue;
+    charges.push({desc,amtCLP:Math.abs(amt)});
+  }
+  if(!charges.length)return[];
+  const totalCard=charges.reduce((s,x)=>s+x.amtCLP,0);
+  let seq=0,assigned=0,result=[];
+  charges.forEach((item,idx)=>{
+    const pct=item.amtCLP/totalCard;
+    const montoItem=idx===charges.length-1?totalCLP-assigned:Math.round(totalCLP*pct);
+    assigned+=montoItem;
+    const L=learnedCat(item.desc);
+    const rule=CLP_RULES.find(r=>r.pat.test(item.desc.toUpperCase()));
+    const cat=L||(rule?rule.cat:null);
+    const src=L?"learn":(rule?"rule":null);
+    result.push({id:"c"+seq++,fecha,descripcion:item.desc,monto:-montoItem,
+      propuesta:cat,propSrc:src,real:cat&&src?cat:null,
+      cardType:"CLP",amtCLP:item.amtCLP});
+  });
+  return result;
+}
+
+// ── Parsear cuenta corriente ───────────────────
+async function parseCuenta(file,mes,año,fUSD,fCLP){
+  const buf=await file.arrayBuffer();
+  const wb=XLSX.read(buf,{type:"array",cellDates:false});
+  const sn=wb.SheetNames.find(n=>n.toLowerCase().includes("formato claude"))||wb.SheetNames[0];
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:""});
+  const movs=[];
+  let saldoIni=null,saldoFin=null,skipped=0,seq=0;
+  let totalCardUSD=0,totalCardCLP=0,fechaUSD=null,fechaCLP=null;
+
+  for(let i=2;i<rows.length;i++){
+    const r=rows[i];const fc=r[1]||r[0];const saldo=parseFloat(r[5])||null;
+    if(!toDate(fc)||!saldo)continue;
+    if(inMonth(fc,mes,año)&&saldoFin===null)saldoFin=saldo;
+    if(inPrevMonth(fc,mes,año)&&saldoIni===null)saldoIni=saldo;
+    if(saldoFin!==null&&saldoIni!==null)break;
+  }
+
+  for(let i=2;i<rows.length;i++){
+    const r=rows[i];const fc=r[1]||r[0];
+    if(!toDate(fc))continue;
+    if(!inMonth(fc,mes,año)){skipped++;continue;}
+    const desc=String(r[2]||"").trim();
+    if(!desc){skipped++;continue;}
+    const egreso=parseFloat(String(r[3]||"").replace(/[^0-9.]/g,""))||0;
+    const ingreso=parseFloat(String(r[4]||"").replace(/[^0-9.]/g,""))||0;
+    const monto=ingreso>0?ingreso:(egreso>0?-egreso:0);
+    const{cat,src}=ruleCuenta(desc);
+    if(cat==="__CARD_USD__"){totalCardUSD+=Math.abs(monto);fechaUSD=fmtDate(fc);skipped++;continue;}
+    if(cat==="__CARD_CLP__"){totalCardCLP+=Math.abs(monto);fechaCLP=fmtDate(fc);skipped++;continue;}
+    movs.push({id:"m"+seq++,fecha:fmtDate(fc),descripcion:desc,monto,
+      propuesta:cat,propSrc:src||null,real:cat&&src?cat:null,cardType:null});
+  }
+
+  if(totalCardUSD>0&&fUSD){
+    const f=fechaUSD||`${año}-${String(mes).padStart(2,"0")}-28`;
+    (await parseCardUSD(fUSD,totalCardUSD,f)).forEach(m=>movs.push(m));
+  }
+  if(totalCardCLP>0&&fCLP){
+    const f=fechaCLP||`${año}-${String(mes).padStart(2,"0")}-28`;
+    (await parseCardCLP(fCLP,totalCardCLP,f)).forEach(m=>movs.push(m));
+  }
+
+  movs.sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  return{movs,saldoIni,saldoFin,skipped,totalCardUSD,totalCardCLP};
+}
+
+function fmt(n){return"$"+Math.abs(n||0).toLocaleString("es-CL");}
+
+// ── Estado ─────────────────────────────────────
+let S={fCuenta:null,fCardUSD:null,fCardCLP:null,
+  movs:[],saldoIni:null,saldoFin:null,skipped:0,
+  totalCardUSD:0,totalCardCLP:0,
+  filter:"all",aiLoading:false,
+  mes:new Date().getMonth()+1,año:new Date().getFullYear()};
+
+// ── Init ───────────────────────────────────────
+(function(){
+  const sm=document.getElementById("sel-mes"),sa=document.getElementById("sel-año");
+  MESES.forEach((m,i)=>{const o=document.createElement("option");o.value=i+1;o.textContent=m;if(i+1===S.mes)o.selected=true;sm.appendChild(o);});
+  [2024,2025,2026,2027].forEach(y=>{const o=document.createElement("option");o.value=y;o.textContent=y;if(y===S.año)o.selected=true;sa.appendChild(o);});
+  sm.onchange=e=>S.mes=parseInt(e.target.value);
+  sa.onchange=e=>S.año=parseInt(e.target.value);
+  const row=document.getElementById("up-row");
+  [{label:"Cuenta Corriente",icon:"🏦",key:"cuenta"},
+   {label:"Tarjeta USD (opcional)",icon:"💵",key:"cardUSD"},
+   {label:"Tarjeta CLP (opcional)",icon:"💳",key:"cardCLP"}]
+  .forEach(({label,icon,key})=>{
+    const box=document.createElement("label");box.className="up-box";box.id="box-"+key;
+    box.innerHTML=`<span class="ico">${icon}</span><span style="font-size:12px;font-weight:500">${label}</span><span class="fname" id="fn-${key}">Arrastra o haz clic</span>`;
+    const inp=document.createElement("input");inp.type="file";inp.accept=".xlsx,.xls";
+    inp.onchange=e=>setFile(key,e.target.files[0]);box.appendChild(inp);
+    box.addEventListener("dragover",e=>{e.preventDefault();box.style.borderColor="#2563eb";});
+    box.addEventListener("dragleave",()=>box.style.borderColor="");
+    box.addEventListener("drop",e=>{e.preventDefault();setFile(key,e.dataTransfer.files[0]);});
+    row.appendChild(box);
+  });
+  const k=localStorage.getItem("et_apikey");
+  if(k){document.getElementById("api-key").value=k;document.getElementById("key-saved").style.display="inline";}
+  document.getElementById("btn-go").onclick=doProcess;
+})();
+
+function setFile(key,file){
+  if(!file)return;
+  if(key==="cuenta")S.fCuenta=file;
+  else if(key==="cardUSD")S.fCardUSD=file;
+  else S.fCardCLP=file;
+  document.getElementById("fn-"+key).textContent=file.name;
+  document.getElementById("box-"+key).classList.add("ok");
+  document.getElementById("box-"+key).querySelector(".ico").textContent="✅";
+  document.getElementById("btn-go").disabled=!S.fCuenta;
+}
+function saveKey(){const v=document.getElementById("api-key").value.trim();if(!v)return;localStorage.setItem("et_apikey",v);document.getElementById("key-saved").style.display="inline";}
+
+async function doProcess(){
+  const btn=document.getElementById("btn-go");btn.textContent="Procesando…";btn.disabled=true;
+  try{
+    const r=await parseCuenta(S.fCuenta,S.mes,S.año,S.fCardUSD,S.fCardCLP);
+    Object.assign(S,{movs:r.movs,saldoIni:r.saldoIni,saldoFin:r.saldoFin,
+      skipped:r.skipped,totalCardUSD:r.totalCardUSD,totalCardCLP:r.totalCardCLP,filter:"all"});
+    document.getElementById("step1").style.display="none";
+    document.getElementById("step2").style.display="block";
+    renderAll();
+  }catch(e){console.error(e);alert("Error: "+e.message);btn.textContent="Clasificar →";btn.disabled=false;}
+}
+
+function renderAll(){renderCuad();renderStats();renderActions();renderFilters();renderTable();renderFooter();}
+
+function renderCuad(){
+  const el=document.getElementById("cuad-panel");
+  if(!S.saldoIni&&!S.saldoFin){el.innerHTML="";return;}
+  const pend=S.movs.filter(m=>!m.real).length;
+  const suma=S.movs.filter(m=>m.real).reduce((a,m)=>a+(m.monto||0),0);
+  const calc=(S.saldoIni||0)+suma;
+  const diff=calc-(S.saldoFin||0);
+  const allDone=pend===0;const ok=allDone&&Math.abs(diff)<2;
+  let cls,msg;
+  if(!allDone){cls="partial";msg=`Faltan <strong>${pend}</strong> movimiento${pend>1?"s":""} por categorizar`;}
+  else if(ok){cls="ok";msg="Cuadra perfectamente. Listo para exportar.";}
+  else{cls="warn";msg=`Descuadre <strong>${fmt(Math.abs(diff))}</strong> ${diff>0?"de más":"de menos"}`;}
+  let extra="";
+  if(S.totalCardUSD)extra+=`<div class="cuad-box"><div class="val" style="color:#1d4ed8">${fmt(S.totalCardUSD)}</div><div class="lbl">Pago tarjeta USD distribuido</div></div>`;
+  if(S.totalCardCLP)extra+=`<div class="cuad-box"><div class="val" style="color:#6d28d9">${fmt(S.totalCardCLP)}</div><div class="lbl">Pago tarjeta CLP distribuido</div></div>`;
+  el.innerHTML=`<div class="card" style="margin-bottom:12px">
+    <div class="slabel" style="margin-bottom:10px">Panel de cuadratura</div>
+    <div class="cuad">
+      <div class="cuad-box"><div class="val" style="color:var(--muted)">${S.saldoIni?fmt(S.saldoIni):"—"}</div><div class="lbl">Saldo inicial</div></div>
+      <div class="cuad-box"><div class="val" style="color:${suma>=0?"var(--green)":"var(--red)"}">${suma>=0?"+":"−"}${fmt(suma)}</div><div class="lbl">Neto clasificado${allDone?"":" (parcial)"}</div></div>
+      ${extra}
+      <div class="cuad-box"><div class="val">${fmt(calc)}</div><div class="lbl">Saldo calculado</div></div>
+      <div class="cuad-box"><div class="val" style="color:var(--blue)">${S.saldoFin?fmt(S.saldoFin):"—"}</div><div class="lbl">Saldo real</div></div>
+    </div>
+    <div class="cuad-result ${cls}"><span style="font-size:18px">${ok?"✓":allDone?"✗":"◑"}</span>${msg}</div>
+  </div>`;
+}
+
+function getStats(){
+  const m=S.movs;
+  return{total:m.length,conRegla:m.filter(x=>x.propSrc==="rule"||x.propSrc==="learn").length,
+    conIA:m.filter(x=>x.propSrc==="ia").length,sinProp:m.filter(x=>!x.propuesta).length,
+    sinReal:m.filter(x=>!x.real).length,nUSD:m.filter(x=>x.cardType==="USD").length,
+    nCLP:m.filter(x=>x.cardType==="CLP").length};
+}
+
+function getFiltered(){
+  if(S.filter==="all")return S.movs;
+  if(S.filter==="pend")return S.movs.filter(x=>!x.real);
+  if(S.filter==="sinprop")return S.movs.filter(x=>!x.propuesta);
+  if(S.filter==="usd")return S.movs.filter(x=>x.cardType==="USD");
+  if(S.filter==="clp")return S.movs.filter(x=>x.cardType==="CLP");
+  if(S.filter==="ia")return S.movs.filter(x=>x.propSrc==="ia");
+  return S.movs;
+}
+
+function renderStats(){
+  const st=getStats(),el=document.getElementById("stats-row");el.innerHTML="";
+  [{l:"Total",v:st.total,c:"#6b7280"},{l:"✓ Regla",v:st.conRegla,c:"#16a34a"},
+   {l:"★ IA",v:st.conIA,c:"#2563eb"},{l:"💵 USD",v:st.nUSD,c:"#1d4ed8"},
+   {l:"💳 CLP",v:st.nCLP,c:"#6d28d9"},{l:"Sin propuesta",v:st.sinProp,c:"#f59e0b"},
+   {l:"Sin confirmar",v:st.sinReal,c:"#dc2626"}]
+  .forEach(x=>{el.innerHTML+=`<div class="chip"><span class="num" style="color:${x.c}">${x.v}</span><span class="lbl">${x.l}</span></div>`;});
+}
+
+function renderActions(){
+  const el=document.getElementById("actions-row");el.innerHTML="";
+  const st=getStats();
+  const sinProp=S.movs.filter(m=>!m.propuesta);
+  if(sinProp.length){
+    const b=document.createElement("button");b.className="btn btn-amber";
+    b.textContent=S.aiLoading?`Enriqueciendo…`:`★ Enriquecer ${sinProp.length} con IA`;
+    b.disabled=S.aiLoading;b.onclick=enrichWithAI;el.appendChild(b);
+  }
+  const cb=document.createElement("button");cb.className="btn btn-green";
+  cb.textContent="✓ Confirmar y exportar CSV";cb.disabled=st.sinReal!==0;
+  if(st.sinReal)cb.title=`Faltan ${st.sinReal} categorías`;
+  cb.onclick=confirmAndExport;el.appendChild(cb);
+  const bk=document.createElement("button");bk.className="btn btn-ghost";bk.textContent="← Nuevo mes";
+  bk.onclick=()=>{document.getElementById("step1").style.display="block";document.getElementById("step2").style.display="none";document.getElementById("btn-go").textContent="Clasificar →";document.getElementById("btn-go").disabled=!S.fCuenta;};
+  el.appendChild(bk);
+  const rules=loadRules();const rk=Object.keys(rules);
+  if(rk.length){
+    const rb=document.createElement("button");rb.className="btn btn-ghost";rb.style.marginLeft="auto";
+    rb.textContent=`🧠 ${rk.length} reglas`;
+    rb.onclick=()=>{const l=Object.entries(rules).map(([d,c])=>`• ${d} → ${c}`).join("\n");
+      if(confirm("Reglas:\n\n"+l+"\n\n¿Eliminar todas?")){localStorage.removeItem("cy_rules");renderActions();}};
+    el.appendChild(rb);
+  }
+}
+
+function renderFilters(){
+  const st=getStats(),el=document.getElementById("filter-row");el.innerHTML="";
+  [{k:"all",l:"Todos",v:st.total},{k:"pend",l:"Sin confirmar",v:st.sinReal},
+   {k:"sinprop",l:"Sin propuesta",v:st.sinProp},{k:"usd",l:"💵 USD",v:st.nUSD},
+   {k:"clp",l:"💳 CLP",v:st.nCLP},{k:"ia",l:"★ IA",v:st.conIA}]
+  .forEach(f=>{
+    const b=document.createElement("button");b.className="fb"+(S.filter===f.k?" on":"");
+    b.textContent=`${f.l} ${f.v}`;b.onclick=()=>{S.filter=f.k;renderFilters();renderTable();};
+    el.appendChild(b);
+  });
+}
+
+function renderTable(){
+  const tbody=document.getElementById("tbl-body");tbody.innerHTML="";
+  const rows=getFiltered();
+  if(!rows.length){tbody.innerHTML=`<tr><td colspan="7" class="empty-row">Sin movimientos</td></tr>`;return;}
+  rows.forEach((m,i)=>{
+    const ac=m.monto<0?"#dc2626":"#16a34a";
+    const amt=(m.monto<0?"−":"+")+"$"+Math.abs(m.monto||0).toLocaleString("es-CL");
+    const propHtml=m.propuesta
+      ?`<span class="prop-cell${m.propSrc==="ia"?" ia":""}">${m.propuesta}</span>`
+      :`<span class="prop-cell" style="color:#f59e0b;border-color:#fcd34d;background:#fffbeb">Pendiente</span>`;
+    let opts=`<option value="">— Sin categoría —</option>`;
+    CATS.forEach(c=>{opts+=`<option value="${c}"${m.real===c?" selected":""}>${c}</option>`;});
+    let fuenteHtml=`<span class="tag tag-cc">Cuenta</span>`;
+    if(m.cardType==="USD")fuenteHtml=`<span class="tag tag-usd">💵 USD${m.amtUSD?" "+m.amtUSD.toFixed(1):""}</span>`;
+    else if(m.cardType==="CLP")fuenteHtml=`<span class="tag tag-clp">💳 CLP</span>`;
+    const tr=document.createElement("tr");
+    if(m.cardType==="USD")tr.className="row-usd";
+    else if(m.cardType==="CLP")tr.className="row-clp";
+    else if(!m.real)tr.className="row-pending";
+    else tr.style.background=i%2===0?"#fff":"#fafaf8";
+    tr.innerHTML=`
+      <td style="white-space:nowrap;color:var(--muted);font-size:11px">${m.fecha}</td>
+      <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(m.descripcion||"").replace(/"/g,"&quot;")}">${m.descripcion}</td>
+      <td style="text-align:right;font-weight:500;color:${ac};white-space:nowrap">${amt}</td>
+      <td>${fuenteHtml}</td><td>${propHtml}</td>
+      <td><select class="cat${m.real?"":" empty"}" data-id="${m.id}">${opts}</select></td>
+      <td><span class="badge" style="background:${m.real?"#f0fdf4":"#fff1f2"};border:0.5px solid ${m.real?"#86efac":"#fca5a5"};color:${m.real?"#16a34a":"#dc2626"}">${m.real?"✓":"?"}</span></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderFooter(){
+  const st=getStats();
+  document.getElementById("footer-note").innerHTML=
+    `<b>${MESES[S.mes-1]} ${S.año}</b> · ${S.skipped} filas omitidas/expandidas · `+
+    `${st.conRegla} por regla · ${st.conIA} por IA · `+
+    `${st.nUSD} cargos USD · ${st.nCLP} cargos CLP`;
+}
+
+document.getElementById("step2").addEventListener("change",e=>{
+  if(e.target.tagName==="SELECT"&&e.target.dataset.id){
+    const id=e.target.dataset.id,val=e.target.value;
+    S.movs=S.movs.map(m=>m.id===id?{...m,real:val||null,editado:true}:m);
+    e.target.className="cat"+(val?"":" empty");
+    renderStats();renderFilters();renderActions();renderCuad();
+    const tr=e.target.closest("tr");
+    if(tr){
+      const badge=tr.querySelector(".badge");
+      if(badge){badge.style.background=val?"#f0fdf4":"#fff1f2";badge.style.borderColor=val?"#86efac":"#fca5a5";badge.style.color=val?"#16a34a":"#dc2626";badge.textContent=val?"✓":"?";}
+      if(val)tr.style.background="";else tr.className="row-pending";
+    }
+  }
+});
+
+async function enrichWithAI(){
+  const apiKey=localStorage.getItem("et_apikey")||document.getElementById("api-key").value.trim();
+  if(!apiKey){alert("Ingresa tu API Key.");return;}
+  const sinProp=S.movs.filter(m=>!m.propuesta);
+  if(!sinProp.length)return;
+  S.aiLoading=true;renderActions();
+  try{
+    const descs=[...new Set(sinProp.map(m=>m.descripcion))];
+    const res=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","x-api-key":apiKey,
+        "anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model:"claude-haiku-4-5",max_tokens:1000,
+        messages:[{role:"user",content:
+          `Eres asistente contable chileno de CobraYA!, plataforma de cobranza.\n`+
+          `Clasifica movimientos bancarios.\n`+
+          `Responde SOLO JSON array: [{"d":"desc exacta","c":"categoria"}]\n`+
+          `Categorías: ${CATS.join(", ")}\nUsa "Otros" si dudas.\n\n${descs.join("\n")}`}]})
+    });
+    if(!res.ok)throw new Error(`API ${res.status}`);
+    const data=await res.json();
+    const text=data.content.map(b=>b.text||"").join("").replace(/```json|```/g,"").trim();
+    const map={};JSON.parse(text).forEach(r=>{map[r.d]=r.c;});
+    S.movs=S.movs.map(m=>{
+      if(!m.propuesta&&map[m.descripcion])return{...m,propuesta:map[m.descripcion],propSrc:"ia",real:null};
+      return m;
+    });
+  }catch(e){alert("Error API: "+e.message);}
+  S.aiLoading=false;renderAll();
+}
+
+function confirmAndExport(){
+  syncMovsToSheets(S.movs, S.mes, S.año);
+  // Guardar aprendizaje
+  S.movs.forEach(m=>{if(m.real&&(m.editado||m.propSrc==="ia"||m.propSrc==="learn"))saveRule(m.descripcion,m.real);});
+
+  // Construir xlsx con mismo formato que CobraYA
+  const wb = XLSX.utils.book_new();
+  const hdrs = ["Nacional / Internacional","Fecha","Descripcion","Monto cuota","Valor USD","Monto final","Dia","Mes","Año","EERR","Fuente"];
+  const wsData = [hdrs];
+
+  S.movs.forEach(m=>{
+    const d = toDate(m.fecha);
+    const dia   = d ? d.getDate()     : "";
+    const mes   = d ? d.getMonth()+1  : "";
+    const anio  = d ? d.getFullYear() : "";
+    const fuente = m.cardType ? `Tarjeta ${m.cardType}` : "Cuenta corriente";
+    wsData.push([
+      "Nacional",
+      d || m.fecha,          // fecha como Date → Excel la formatea sola
+      m.descripcion||"",
+      m.monto,               // Monto cuota
+      "",                    // Valor USD — vacío, tú lo completas si necesitas
+      m.monto,               // Monto final
+      dia, mes, anio,
+      m.real||"",
+      fuente
+    ]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Formato fecha en col B (columna 1, índice 0-based)
+  const dateFmt = "DD/MM/YYYY";
+  for(let r=1;r<wsData.length;r++){
+    const cell = ws[XLSX.utils.encode_cell({r,c:1})];
+    if(cell) cell.z = dateFmt;
+  }
+
+  // Anchos de columna
+  ws["!cols"] = [
+    {wch:22},{wch:12},{wch:55},{wch:14},{wch:10},
+    {wch:14},{wch:6},{wch:6},{wch:6},{wch:22},{wch:18}
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, "Movimientos Banco");
+  const fname = `cobrayA_${MESES[S.mes-1]}_${S.año}.xlsx`;
+  XLSX.writeFile(wb, fname);
+}
+
+// ═══════════════════════════════════════════════
+// GOOGLE SHEETS INTEGRATION
+// ═══════════════════════════════════════════════
+const GS_CREDS = {
+  client_email: "conciliadorcobraya@cobraya-clasificador.iam.gserviceaccount.com",
+  private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC1L4YL6rZl6WzP\n+/zEpBGlaG5xOrH5kCG7ldr2H3QE6e+ECXChmwW0hlrnomNZf6j8kOP84aq5jVKa\nYIaJA71JssJd65w3TUHR1DiFscYKkzCk9599+74mILqk2GC3NRdUKGZhSG/64XIT\n3kfZ+WRxG+FJocT335Uela3ribx9g8H66p1Msxr37hDBFliPxJ3TUtIxk4H0T9ua\nVfq1IXxaQdZdOraURRTL0qug6jCK+aTqRDwtC3YnMsQar3ezmTe35EXX8omQkeXN\nTVS9IvtI0c5V0R7T3yJ/ZiFk7PrZowFLZXNOgk/wVbSzpPjtYwhd7vPvD6LEP9FV\nEI5ZrmUbAgMBAAECggEAPVtaIBf8a7eoLyis+SR8i1C5seOIGLTcD4vYaifNoMpd\n349Y0olOXctv5mhCD7FhFyKz6lO7fnmiwv+0H5siE16TXr3mmX2yr+2XtIK2x6b/\nvqXSn5XMV1oXCrLx0akLfObvgLtInKOS/7JzD5hakMk5ujcrnitbcs+KZayvpasS\nI5kTAPz0fSEvXWgN3xVJP4A0kdHoT4jq3CMcRTOUD/jxYLZ3j/fW4qk2tA2jeUTG\nc3bRVbkelMPeNRwqJ52xAXj3PH2i5N1Gh2ab6uISKermt9U/ktGeKptrxWVaaOD2\nvhs1pIXRrRvIGFq0KcbQ90XjVkhXzCUIaWOqXZwYZQKBgQDmuZzKEEP/ZcjeZp3t\nhNY2YCdydOk85eJ+YBAtjoe3Cyaxm6hclA4NI2Nt8vo8yfphkvDAWZKIFKJ13bx+\nxLnkRQp88lE1PdsrXOxL4kK83SKzer2IIgcwZ/vg0h8jkwsV8Dx7tKMNHCV2ePgy\nsRXEDMpAdTVN8PT5+JmLHuAZbwKBgQDJCKRe0byQm94CUiwE7C1o43Bxtr4BJS7V\nqzMjko7Aeazw12ur/eFZrUoie5nNqqyYeMS64BqH0R74PWUJvfLmOQJeMCQzNNSl\nMgaHLII18U81N1JShFAjvDCxx3cbPhaAhlR5V9Fh281OSjzhOMFMqs5PIcC++bqH\nAQ+27cshFQKBgENwdZfKcVWxlqkLLZZDgambKWyXJ6WZPD7cLV5jjt+97q1zZh7J\nV+IXOfTlVKd4Eit7G8vdYqtL/MCe833KWtuSIqKq4XnCftGJ87eqhv9VU9NKSSQF\nbjyD6Geqg1eOn2rmMYenIRGv7HNYoJOQl2AarPNyTwZdK/304Ex91dsZAoGAUWhx\nf4A5dunXhmMWNkwZu27WuwXAfaA8DgSM6evQaPsc4E6r6HMfzXvSGJKq3tEtoXTO\nXcqgk71IaEgcYUyNT1NotRGTpzTOo7LVV+nbNNLqO2eSq52vAjmUEnnurpZ+8D71\neEnqnVEwG3MOojmkdVJ5xyuo7O0d7susPGyhJF0CgYApVh6Or3Z4JYLJ3IBJ9gdq\ncsH5knOHMP3l95Sc1sA/bxtr7yKyLeI3fUqup6G9kE/fXeAChyhItUDVyus6D7f4\n0mib/VLmC428RyRxgEdAWqI35X6B0mdZYdFRTWzpKXQDvLMcUvcOK3giZlmYCKWy\n2P0eOXDGiATlnSZnBrElWg==\n-----END PRIVATE KEY-----\n",
+  token_uri: "https://oauth2.googleapis.com/token"
+};
+const SHEET_ID = "1txIGd4r576nbG7nh4GqeGvrqBTR3m0xabbChHQYWxo4";
+const SHEET_MOVS = "Historial";
+const SHEET_RULES = "Reglas";
+
+let gsToken = null;
+let gsTokenExp = 0;
+
+async function gsGetToken() {
+  if (gsToken && Date.now() < gsTokenExp - 60000) return gsToken;
+  // Build JWT
+  const header = btoa(JSON.stringify({alg:"RS256",typ:"JWT"})).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
+  const now = Math.floor(Date.now()/1000);
+  const claim = btoa(JSON.stringify({
+    iss: GS_CREDS.client_email,
+    scope: "https://www.googleapis.com/auth/spreadsheets",
+    aud: GS_CREDS.token_uri,
+    exp: now+3600, iat: now
+  })).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
+  const unsigned = header+"."+claim;
+  // Sign with RSA-SHA256
+  const keyData = GS_CREDS.private_key
+    .replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----/g,"")
+    .replace(/\n/g,"").replace(/\s/g,"");
+  const binaryKey = Uint8Array.from(atob(keyData), c=>c.charCodeAt(0));
+  const cryptoKey = await crypto.subtle.importKey("pkcs8", binaryKey,
+    {name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"}, false, ["sign"]);
+  const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", cryptoKey,
+    new TextEncoder().encode(unsigned));
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)))
+    .replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
+  const jwt = unsigned+"."+sigB64;
+  // Exchange for access token
+  const resp = await fetch(GS_CREDS.token_uri, {
+    method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body: "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion="+jwt
+  });
+  const data = await resp.json();
+  gsToken = data.access_token;
+  gsTokenExp = Date.now() + (data.expires_in||3600)*1000;
+  return gsToken;
+}
+
+async function gsAppendRows(sheet, rows) {
+  try {
+    const token = await gsGetToken();
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheet)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+      method:"POST",
+      headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},
+      body: JSON.stringify({values: rows})
+    });
+  } catch(e) { console.error("Sheets append error", e); }
+}
+
+async function gsOverwriteSheet(sheet, rows) {
+  try {
+    const token = await gsGetToken();
+    // Clear first
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheet)}:clear`, {
+      method:"POST", headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"}
+    });
+    // Write
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheet)}?valueInputOption=USER_ENTERED`, {
+      method:"PUT",
+      headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},
+      body: JSON.stringify({values: rows})
+    });
+  } catch(e) { console.error("Sheets write error", e); }
+}
+
+async function syncRulesToSheets(desc, cat) {
+  // Fire and forget — sync rules sheet after each correction
+  const LEARNED_LOCAL = loadRules();
+  const rows = [["Descripcion","Categoria"]];
+  Object.entries(LEARNED_LOCAL).forEach(([d,c]) => rows.push([d,c]));
+  gsOverwriteSheet(SHEET_RULES, rows);
+}
+
+async function syncMovsToSheets(movs, mes, ano) {
+  const period = MESES[mes-1]+" "+ano;
+  const rows = movs.map(m => {
+    const d = toDate(m.fecha);
+    return [period, m.fecha, m.descripcion||"", m.monto, m.cardType||"CC", m.real||""];
+  });
+  gsAppendRows(SHEET_MOVS, rows);
+}
+
+
+// Init sheets headers if needed
+async function initSheets(){
+  try{
+    const token = await gsGetToken();
+    // Check if Historial sheet has headers
+    const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Historial!A1:F1`,
+      {headers:{"Authorization":"Bearer "+token}});
+    const d = await r.json();
+    if(!d.values||!d.values[0]||d.values[0][0]!=="Periodo"){
+      await gsAppendRows("Historial",[["Periodo","Fecha","Descripcion","Monto","Fuente","EERR"]]);
+    }
+    const r2 = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Reglas!A1:B1`,
+      {headers:{"Authorization":"Bearer "+token}});
+    const d2 = await r2.json();
+    if(!d2.values||!d2.values[0]||d2.values[0][0]!=="Descripcion"){
+      await gsOverwriteSheet("Reglas",[["Descripcion","Categoria"]]);
+    }
+    console.log("Sheets ready");
+  }catch(e){console.error("initSheets",e);}
+}
+initSheets();
+
+</script>
+</body>
+</html>
