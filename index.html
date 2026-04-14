@@ -218,7 +218,9 @@ async function parseCardUSD(file, totalCLP, fecha){
   let hi=null;
   for(let i=0;i<rows.length;i++){if(String(rows[i][1]||"").includes("Fecha")){hi=i;break;}}
   if(hi===null)return[];
-  // Agrupar cargos por proveedor normalizado
+  // Inferir mes/año del período desde fecha (YYYY-MM-DD)
+  const [fAnio,fMes]=fecha.split("-").map(Number);
+  // Agrupar cargos por proveedor normalizado — SOLO del mes trabajado
   const grp={};
   for(let i=hi+1;i<rows.length;i++){
     const r=rows[i];
@@ -227,7 +229,10 @@ async function parseCardUSD(file, totalCLP, fecha){
     if(!rawDesc||rawDesc.startsWith("=")||rawDesc.startsWith("CR"))continue;
     const amt=parseFloat(r[4]);
     if(isNaN(amt)||amt===0)continue;
-    if(amt>0)continue; // Skip positivos — MONTO CANCELADO = pago recibido, netea contra cuenta
+    if(amt>0)continue; // Skip positivos — pagos recibidos, netean contra cuenta
+    // Filtrar por mes: solo cargos del mes que estamos trabajando
+    const rd=toDate(r[1]);
+    if(!rd||rd.getFullYear()!==fAnio||rd.getMonth()+1!==fMes)continue;
     // Normalizar: quitar sufijos tipo "COMPRAS INT.VI", "PAGOS INT.VISA"
     const key=rawDesc.replace(/\s+(COMPRAS INT\.VI|PAGOS INT\.VISA|CR\.C\.INT\.VISA).*/i,"").trim();
     if(!grp[key])grp[key]={desc:key,amtUSD:0};
@@ -261,6 +266,8 @@ async function parseCardCLP(file, totalCLP, fecha){
   for(let i=0;i<rows.length;i++){if(String(rows[i][1]||"").includes("Fecha")){hi=i;break;}}
   if(hi===null)return[];
   const charges=[];
+  // Inferir mes/año del período desde fecha
+  const [clpAnio,clpMes]=fecha.split("-").map(Number);
   for(let i=hi+1;i<rows.length;i++){
     const r=rows[i];
     if(!r[1]||!r[3])continue;
@@ -268,8 +275,10 @@ async function parseCardCLP(file, totalCLP, fecha){
     if(!desc||desc.startsWith("="))continue;
     const amt=parseFloat(r[6]||r[4]);
     if(isNaN(amt)||amt===0)continue;
-    // Skip positivos — son pagos recibidos que netean contra cuenta corriente
-    if(amt > 0) continue;
+    if(amt > 0) continue; // Skip positivos — pagos recibidos, netean contra cuenta
+    // Filtrar por mes: solo cargos del mes trabajado
+    const rd=toDate(r[1]);
+    if(!rd||rd.getFullYear()!==clpAnio||rd.getMonth()+1!==clpMes)continue;
     charges.push({desc,amtCLP:Math.abs(amt)});
   }
   if(!charges.length)return[];
